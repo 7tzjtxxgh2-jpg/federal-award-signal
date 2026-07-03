@@ -20,6 +20,7 @@ type ApiError = {
 export default function SamResearchPage() {
   const [samUrl, setSamUrl] = useState("");
   const [fallbackIdentifier, setFallbackIdentifier] = useState("");
+  const [accessCode, setAccessCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<{
     message: string;
@@ -38,7 +39,7 @@ export default function SamResearchPage() {
       const response = await fetch("/api/research-solicitation", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ samUrl, fallbackIdentifier }),
+        body: JSON.stringify({ samUrl, fallbackIdentifier, accessCode }),
       });
       const body = (await response.json()) as
         | ResearchSolicitationResponse
@@ -121,9 +122,23 @@ export default function SamResearchPage() {
               disabled={loading}
             />
           </div>
+          <div className="fallback-field">
+            <label htmlFor="accessCode">
+              Dashboard access code <span>(if required)</span>
+            </label>
+            <input
+              id="accessCode"
+              type="password"
+              autoComplete="current-password"
+              placeholder="Code provided by the dashboard owner"
+              value={accessCode}
+              onChange={(event) => setAccessCode(event.target.value)}
+              disabled={loading}
+            />
+          </div>
           <p className="form-hint">
-            Workspace and award-notice URLs are followed to related
-            solicitations when SAM.gov exposes the relationship.
+            The server uses the documented public SAM.gov Opportunities API.
+            Your access code is separate from the owner’s SAM.gov key.
           </p>
         </form>
       </header>

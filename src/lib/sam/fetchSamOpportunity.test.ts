@@ -47,92 +47,60 @@ describe("fetchSamOpportunityWithDebug", () => {
     ).toMatchObject([
       { postedFrom: "07/04/2025", postedTo: "07/03/2026" },
       { postedFrom: "07/04/2024", postedTo: "07/03/2025" },
+      { postedFrom: "07/04/2023", postedTo: "07/03/2024" },
     ]);
   });
 
-  it("follows an award notice to its related original solicitation", async () => {
-    const awardNoticeId = "5bc31d547dd34510ae98327519c30a90";
-    const solicitationNoticeId = "f42cb58d7201471a94259e85b2471f3c";
-    const fetchMock = vi.fn<typeof fetch>(async (input) => {
-      const url = String(input);
-      if (url.includes(`/opportunities/${awardNoticeId}?`)) {
-        return Response.json({
-          id: awardNoticeId,
-          opportunityId: awardNoticeId,
-          postedDate: "2026-06-16T20:05:41.908Z",
-          data2: {
-            type: "a",
-            title: "Janitorial award",
-            solicitationNumber: "1232SA26P0366",
-            award: {
-              number: "1232SA26P0366",
-              amount: "118378.26",
-              date: "2026-06-16",
-              awardee: { name: "Example Cleaner LLC" },
-            },
+  it("uses only the documented public Opportunities API for workspace URLs", async () => {
+    const noticeId = "4befa4be4f634d82b1f0fb16bd98a822";
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+      Response.json({
+        totalRecords: 1,
+        opportunitiesData: [
+          {
+            noticeId,
+            title: "Runways Edge Tables & Chairs Update",
+            solicitationNumber: "W50S9H26QA029",
+            department: "DEPT OF DEFENSE",
+            subTier: "DEPT OF THE ARMY",
+            office: "W7N8 USPFO ACTIVITY WIANG CRTC",
+            postedDate: "2026-06-26",
+            naicsCode: "337127",
+            classificationCode: "7105",
+            descriptionText: "Tables and chairs for a public requirement.",
           },
-          related: { opportunityId: solicitationNoticeId },
-        });
-      }
-      if (url.includes(`/opportunities/${solicitationNoticeId}?`)) {
-        return Response.json({
-          id: solicitationNoticeId,
-          opportunityId: solicitationNoticeId,
-          postedDate: "2026-05-06T13:30:00Z",
-          description: [{ body: "<p>Janitorial services for a facility.</p>" }],
-          data2: {
-            type: "k",
-            title: "Janitorial solicitation",
-            solicitationNumber: "1232SA26Q0580",
-            organizationId: "500022476",
-            naics: [{ code: ["561720"], type: "primary" }],
-            classificationCode: "S201",
-            solicitation: {
-              setAside: "SBA",
-              deadlines: { response: "2026-05-20T15:00:00-04:00" },
-            },
-          },
-        });
-      }
-      if (url.includes("/opportunities/organizations/500022476?")) {
-        return Response.json({
-          _embedded: [
-            {
-              org: {
-                l1Name: "AGRICULTURE, DEPARTMENT OF",
-                l2Name: "AGRICULTURAL RESEARCH SERVICE",
-                l3Name: "USDA ARS AFM APD",
-              },
-            },
-          ],
-        });
-      }
-      throw new Error(`Unexpected URL: ${url}`);
-    });
+        ],
+      }),
+    );
 
     const result = await fetchSamOpportunityWithDebug(
       {
-        originalUrl: `https://sam.gov/workspace/contract/opp/${awardNoticeId}/view`,
-        noticeId: awardNoticeId,
+        originalUrl: `https://sam.gov/workspace/contract/opp/${noticeId}/view`,
+        noticeId,
         queryParams: {},
       },
-      { apiKey: "test-key", fetchImpl: fetchMock },
+      {
+        apiKey: "test-key",
+        baseUrl: "https://api.sam.test/opportunities/v2/search",
+        fetchImpl: fetchMock,
+        now: new Date("2026-07-03T12:00:00Z"),
+      },
     );
 
     expect(result.profile).toMatchObject({
-      title: "Janitorial solicitation",
-      solicitationNumber: "1232SA26Q0580",
-      noticeId: solicitationNoticeId,
-      relatedNoticeId: awardNoticeId,
-      naicsCode: "561720",
-      pscCode: "S201",
-      agency: "AGRICULTURE, DEPARTMENT OF",
-      award: {
-        number: "1232SA26P0366",
-        amount: 118378.26,
-        awardeeName: "Example Cleaner LLC",
-      },
+      title: "Runways Edge Tables & Chairs Update",
+      solicitationNumber: "W50S9H26QA029",
+      noticeId,
+      naicsCode: "337127",
+      pscCode: "7105",
+      agency: "DEPT OF DEFENSE",
     });
-    expect(result.warnings.join(" ")).toContain("award notice");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain(
+      "https://api.sam.test/opportunities/v2/search",
+    );
+    expect(String(fetchMock.mock.calls[0]?.[0])).not.toContain(
+      "sam.gov/api/prod",
+    );
   });
 });

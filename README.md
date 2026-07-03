@@ -8,7 +8,7 @@ A Next.js proof of concept that turns a public SAM.gov opportunity URL into an a
 
 - Flexible SAM.gov URL parsing for notice IDs and solicitation numbers
 - SAM.gov Opportunities API retrieval and response normalization
-- SAM.gov workspace/award-notice resolution with automatic related-solicitation following
+- Five-year lookup through the documented SAM.gov Public Opportunities API
 - Optional solicitation or award-number fallback, including exact USAspending award resolution
 - Cascading USAspending searches by NAICS, PSC, agency, and keywords
 - Separate contract and IDV searches (required by the live USAspending API)
@@ -27,7 +27,7 @@ A Next.js proof of concept that turns a public SAM.gov opportunity URL into an a
    cp .env.example .env.local
    ```
 
-2. Add a SAM.gov API key to `.env.local`. Leave `OPENAI_API_KEY` blank to use the deterministic memo.
+2. Add a SAM.gov API key to `.env.local`. Leave `OPENAI_API_KEY` blank to use the deterministic memo. Set `APP_ACCESS_CODE` if you want visitors to enter a separate share code before the server uses your SAM.gov key.
 
 3. Install and run:
 
@@ -53,16 +53,20 @@ repository to Vercel instead:
 
 1. Click **Deploy with Vercel** above and sign in with GitHub.
 2. Set `SAM_API_KEY` to a valid SAM.gov API key.
-3. Optionally set `OPENAI_API_KEY` and `OPENAI_MODEL`. Without them, the app
+3. Set `APP_ACCESS_CODE` to a private share code and give that code—not the
+   SAM.gov key—to the people testing the dashboard.
+4. Optionally set `OPENAI_API_KEY` and `OPENAI_MODEL`. Without them, the app
    uses its deterministic pursuit memo.
-4. Deploy, then share the generated Vercel URL.
+5. Deploy, then share the generated Vercel URL.
 
 Never commit `.env.local`. It is ignored by Git and environment variables set
-in Vercel remain server-side.
+in Vercel remain server-side. The deployed app only calls the documented public
+SAM.gov Opportunities API and displays public API data.
 
 ## Current MVP limitations
 
-- SAM.gov public search requires `postedFrom` and `postedTo` and limits each request to one year. Exact notice URLs first use SAM.gov's notice-detail data, including related-opportunity links; the date-window cascade remains as a fallback.
+- SAM.gov public search requires `postedFrom` and `postedTo` and limits each request to one year, so the app searches up to five one-year windows.
+- Personal SAM.gov API keys can have low daily quotas. Keep the share code private and consider a SAM.gov system account for broader use.
 - Comparable-award ranking uses transparent classification, agency, and keyword signals rather than semantic embeddings.
 - USAspending award amounts may represent obligations, ceilings, task orders, or IDVs. They are not directly interchangeable with bid prices.
 - The tool does not know losing vendors’ proposals or pricing and never treats a possible incumbent signal as confirmed incumbency.

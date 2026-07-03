@@ -8,6 +8,7 @@ export const runtime = "nodejs";
 const requestSchema = z.object({
   samUrl: z.string().trim().min(1, "SAM.gov URL is required."),
   fallbackIdentifier: z.string().trim().max(100).optional(),
+  accessCode: z.string().trim().max(200).optional(),
 });
 
 export async function POST(request: Request) {
@@ -36,6 +37,22 @@ export async function POST(request: Request) {
         },
       },
       { status: 400 },
+    );
+  }
+
+  const requiredAccessCode = process.env.APP_ACCESS_CODE?.trim();
+  if (
+    requiredAccessCode &&
+    parsed.data.accessCode?.trim() !== requiredAccessCode
+  ) {
+    return NextResponse.json(
+      {
+        error: {
+          code: "ACCESS_DENIED",
+          message: "Enter the dashboard access code and try again.",
+        },
+      },
+      { status: 401 },
     );
   }
 

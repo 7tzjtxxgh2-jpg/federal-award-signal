@@ -7,7 +7,6 @@ import {
   getSamRecords,
   normalizeSamOpportunity,
 } from "@/lib/sam/normalizeSamOpportunity";
-import { normalizeSamNoticeDetail } from "@/lib/sam/normalizeSamNoticeDetail";
 
 export type FetchSamOptions = {
   fetchImpl?: typeof fetch;
@@ -22,8 +21,6 @@ export type FetchSamResult = {
     label: string;
     source:
       | "sam-public-search"
-      | "sam-notice-detail"
-      | "sam-organization"
       | "usaspending-award-fallback";
     endpoint: string;
     method: "GET" | "POST";
@@ -89,83 +86,6 @@ type JsonRecord = Record<string, unknown>;
 
 function isRecord(value: unknown): value is JsonRecord {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
-}
-
-function detailIsUsable(body: unknown): body is JsonRecord {
-  if (!isRecord(body)) return false;
-  return isRecord(body.data2) && Boolean(body.id ?? body.opportunityId);
-}
-
-async function fetchSamNoticeDetail(
-  noticeId: string,
-  apiKey: string,
-  fetchImpl: typeof fetch,
-  queryUsed: FetchSamResult["queryUsed"],
-): Promise<JsonRecord | undefined> {
-  const endpoint = `https://sam.gov/api/prod/opps/v2/opportunities/${encodeURIComponent(noticeId)}`;
-  const url = new URL(endpoint);
-  url.searchParams.set("api_key", apiKey);
-  let response: Response;
-  try {
-    response = await fetchImpl(url);
-  } catch {
-    queryUsed.push({
-      label: `SAM notice detail: ${noticeId}`,
-      source: "sam-notice-detail",
-      endpoint,
-      method: "GET",
-    });
-    return undefined;
-  }
-  const body = await responseBody(response);
-  queryUsed.push({
-    label: `SAM notice detail: ${noticeId}`,
-    source: "sam-notice-detail",
-    endpoint,
-    method: "GET",
-    status: response.status,
-    resultCount: detailIsUsable(body) ? 1 : 0,
-  });
-  return response.ok && detailIsUsable(body) ? body : undefined;
-}
-
-async function fetchSamOrganization(
-  organizationId: string | undefined,
-  apiKey: string,
-  fetchImpl: typeof fetch,
-  queryUsed: FetchSamResult["queryUsed"],
-): Promise<unknown> {
-  if (!organizationId) return undefined;
-  const endpoint = `https://sam.gov/api/prod/opps/v2/opportunities/organizations/${encodeURIComponent(organizationId)}`;
-  const url = new URL(endpoint);
-  url.searchParams.set("api_key", apiKey);
-  try {
-    const response = await fetchImpl(url);
-    const body = await responseBody(response);
-    queryUsed.push({
-      label: `SAM organization: ${organizationId}`,
-      source: "sam-organization",
-      endpoint,
-      method: "GET",
-      status: response.status,
-      resultCount:
-        response.ok &&
-        isRecord(body) &&
-        Array.isArray(body._embedded) &&
-        body._embedded.length
-          ? 1
-          : 0,
-    });
-    return response.ok ? body : undefined;
-  } catch {
-    queryUsed.push({
-      label: `SAM organization: ${organizationId}`,
-      source: "sam-organization",
-      endpoint,
-      method: "GET",
-    });
-    return undefined;
-  }
 }
 
 function valueText(...values: unknown[]): string | undefined {
@@ -356,79 +276,6 @@ export async function fetchSamOpportunityWithDebug(
   const now = options.now ?? new Date();
   const queryUsed: FetchSamResult["queryUsed"] = [];
   const warnings: string[] = [];
-
-  // Exact SAM page-detail lookup avoids date-window ambiguity and exposes
-  // related opportunity IDs for award notices.
-  if (ids.noticeId) {
-    const noticeDetail = await fetchSamNoticeDetail(
-      ids.noticeId,
-      apiKey,
-      fetchImpl,
-      queryUsed,
-    );
-    if (noticeDetail) {
-      const data = isRecord(noticeDetail.data2) ? noticeDetail.data2 : {};
-      const relatedId = valueText(
-        isRecord(noticeDetail.related)
-          ? noticeDetail.related.opportunityId
-          : undefined,
-      );
-      const isAwardNotice = valueText(data.type)?.toLowerCase() === "a";
-      let profileDetail = noticeDetail;
-      let originatingAwardNotice: unknown;
-
-      if (isAwardNotice && relatedId) {
-        const relatedDetail = await fetchSamNoticeDetail(
-          relatedId,
-          apiKey,
-          fetchImpl,
-          queryUsed,
-        );
-        if (relatedDetail) {
-          profileDetail = relatedDetail;
-          originatingAwardNotice = noticeDetail;
-          warnings.push(
-            `The pasted URL is an award notice. SAM.gov linked it to original solicitation ${valueText(
-              isRecord(relatedDetail.data2)
-                ? relatedDetail.data2.solicitationNumber
-                : undefined,
-              relatedId,
-            )}.`,
-          );
-        } else {
-          warnings.push(
-            "The pasted URL is an award notice, but its related solicitation could not be retrieved; the award notice itself was used.",
-          );
-        }
-      }
-
-      const profileData = isRecord(profileDetail.data2)
-        ? profileDetail.data2
-        : {};
-      const organization = await fetchSamOrganization(
-        valueText(profileData.organizationId),
-        apiKey,
-        fetchImpl,
-        queryUsed,
-      );
-      warnings.push(
-        "SAM.gov notice-detail resolution was used because it is more reliable for workspace and award-notice URLs than the date-filtered public search.",
-      );
-      return {
-        profile: normalizeSamNoticeDetail({
-          detail: profileDetail,
-          ids,
-          organization,
-          originatingAwardNotice,
-        }),
-        queryUsed,
-        warnings,
-      };
-    }
-    warnings.push(
-      "SAM.gov notice-detail resolution returned no usable record; the public search fallback was attempted.",
-    );
-  }
 
   const publicIdentifiers: Array<{
     key: "noticeid" | "solnum";
