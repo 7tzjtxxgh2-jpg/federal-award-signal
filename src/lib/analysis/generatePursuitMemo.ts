@@ -136,6 +136,7 @@ export async function generatePursuitMemoWithDebug(
       naicsCode: award.naicsCode,
       pscCode: award.pscCode,
       similarityReasons: award.similarityReasons,
+      sourceDocuments: award.sourceDocuments,
     })),
     vendorLandscape: input.vendorLandscape.slice(0, 8),
     priceIntelligence: input.priceIntelligence,

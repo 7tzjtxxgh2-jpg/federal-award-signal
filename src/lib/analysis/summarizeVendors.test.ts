@@ -5,6 +5,7 @@ import { ComparableAward } from "@/lib/types";
 function award(overrides: Partial<ComparableAward>): ComparableAward {
   return {
     source: "usaspending",
+    sourceDocuments: [],
     raw: {},
     similarityReasons: [],
     ...overrides,

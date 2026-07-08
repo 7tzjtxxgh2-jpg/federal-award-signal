@@ -6,6 +6,7 @@ function award(awardAmount: number): ComparableAward {
   return {
     awardAmount,
     source: "usaspending",
+    sourceDocuments: [],
     raw: {},
     similarityReasons: [],
   };

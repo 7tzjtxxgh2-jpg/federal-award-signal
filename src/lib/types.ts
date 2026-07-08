@@ -55,6 +55,10 @@ export type ComparableAward = {
   awardType?: string;
   competition?: string;
   setAside?: string;
+  sourceDocuments: {
+    label: string;
+    url: string;
+  }[];
   source: "usaspending";
   raw: unknown;
   similarityReasons: string[];

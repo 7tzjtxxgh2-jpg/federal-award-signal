@@ -34,6 +34,38 @@ function amount(value: unknown): number | undefined {
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
+function sourceDocuments(record: JsonRecord): ComparableAward["sourceDocuments"] {
+  const generatedInternalId = text(
+    record.generated_internal_id,
+    record.internal_id,
+    record["generated_internal_id"],
+  );
+  const awardId = text(record["Award ID"], record.award_id, record.piid);
+  const links: ComparableAward["sourceDocuments"] = [];
+
+  if (generatedInternalId) {
+    links.push({
+      label: "USAspending award record",
+      url: `https://www.usaspending.gov/award/${encodeURIComponent(generatedInternalId)}`,
+    });
+  }
+
+  if (awardId) {
+    const params = new URLSearchParams({
+      q: awardId,
+      s: "FPDS.GOV",
+      templateName: "1.5.3",
+      indexName: "awardfull",
+    });
+    links.push({
+      label: "FPDS source search",
+      url: `https://www.fpds.gov/ezsearch/search.do?${params.toString()}`,
+    });
+  }
+
+  return links;
+}
+
 function same(a?: string, b?: string): boolean {
   return Boolean(a && b && a.trim().toLowerCase() === b.trim().toLowerCase());
 }
@@ -100,6 +132,7 @@ export function normalizeUsaspendingAward(
     ),
     competition: text(record.Competition, record.competition),
     setAside: text(record["Set Aside"], record.set_aside),
+    sourceDocuments: sourceDocuments(record),
     source: "usaspending",
     raw,
     similarityReasons,

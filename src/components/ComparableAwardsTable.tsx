@@ -32,6 +32,7 @@ export function ComparableAwardsTable({
                 <th>Codes</th>
                 <th>Description</th>
                 <th>Why it matched</th>
+                <th>Source docs</th>
               </tr>
             </thead>
             <tbody>
@@ -75,6 +76,24 @@ export function ComparableAwardsTable({
                           ))
                         : "Broad fallback match"}
                     </div>
+                  </td>
+                  <td>
+                    {award.sourceDocuments.length ? (
+                      <div className="source-doc-list">
+                        {award.sourceDocuments.map((sourceDocument) => (
+                          <a
+                            key={sourceDocument.url}
+                            href={sourceDocument.url}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            {sourceDocument.label}
+                          </a>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="table-subtext">No source link</span>
+                    )}
                   </td>
                 </tr>
               ))}

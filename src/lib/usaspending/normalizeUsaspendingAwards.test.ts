@@ -14,6 +14,28 @@ const profile = {
 };
 
 describe("USAspending award normalization", () => {
+  it("adds primary source document links for audit follow-up", () => {
+    const award = normalizeUsaspendingAward(
+      {
+        generated_internal_id: "CONT_AWD_TEST_1",
+        "Award ID": "W9123-24-C-0001",
+        "Recipient Name": "Example Co",
+      },
+      profile,
+    );
+
+    expect(award.sourceDocuments).toEqual([
+      {
+        label: "USAspending award record",
+        url: "https://www.usaspending.gov/award/CONT_AWD_TEST_1",
+      },
+      {
+        label: "FPDS source search",
+        url: "https://www.fpds.gov/ezsearch/search.do?q=W9123-24-C-0001&s=FPDS.GOV&templateName=1.5.3&indexName=awardfull",
+      },
+    ]);
+  });
+
   it("deduplicates on generated internal ID and merges similarity reasons", () => {
     const first = normalizeUsaspendingAward(
       {
